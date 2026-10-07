@@ -1,0 +1,1959 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>公經社中一理財教育：三日零用錢預算與突發情景模擬系統 (EDB FinEd Lab)</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Font Awesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <!-- Canvas Confetti for Celebration -->
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#eff6ff',
+              100: '#dbeafe',
+              500: '#1d4ed8',
+              600: '#1e40af',
+              700: '#1e3a8a',
+            },
+            edb: {
+              blue: '#0284c7',
+              navy: '#0f172a',
+              gold: '#d97706',
+              green: '#059669',
+              danger: '#dc2626'
+            }
+          },
+          fontFamily: {
+            sans: ['"Inter"', 'system-ui', '-apple-system', '"PingFang HK"', '"Noto Sans TC"', 'sans-serif'],
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    /* Custom scrollbar and smooth transitions */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+    .badge-pop { animation: pop 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+    @keyframes pop {
+      0% { transform: scale(0.8); opacity: 0; }
+      100% { transform: scale(1); opacity: 1; }
+    }
+    .chalk-font { font-family: "PingFang HK", "Microsoft JhengHei", sans-serif; }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800 antialiased min-h-screen flex flex-col font-sans">
+
+  <!-- 頂部功能列與模式切換 (學生端 / 教師主控台) -->
+  <header class="bg-white border-b border-slate-200 sticky top-0 z-50 shadow-sm">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+      <div class="flex items-center space-x-3">
+        <div class="h-10 w-10 rounded-xl bg-gradient-to-tr from-blue-700 to-indigo-600 flex items-center justify-center text-white shadow-md">
+          <i class="fa-solid fa-piggy-bank text-xl"></i>
+        </div>
+        <div>
+          <div class="flex items-center space-x-2">
+            <h1 class="text-base sm:text-lg font-bold text-slate-900 leading-tight">公經社單元 1.3 理財教育模擬系統</h1>
+            <span class="hidden sm:inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-blue-100 text-blue-800">
+              中一級公民、經濟與社會科
+            </span>
+          </div>
+          <p class="text-xs text-slate-500 hidden sm:block">作出知情、理性及負責任的金錢管理決定（三日零用錢預算與突發情景）</p>
+        </div>
+      </div>
+
+      <!-- 模式切換與快捷控制 -->
+      <div class="flex items-center space-x-2 sm:space-x-3">
+        <!-- 只有以教師身份進入時才顯示此切換列，學生端完全隱藏 -->
+        <div id="modeSwitcherContainer" class="hidden bg-slate-100 p-1 rounded-xl items-center border border-slate-200 text-xs font-semibold">
+          <button id="btnSwitchStudent" onclick="switchView('student')" class="px-3 py-1.5 rounded-lg transition-all duration-200 bg-white text-blue-700 shadow-sm flex items-center space-x-1.5">
+            <i class="fa-solid fa-graduation-cap"></i>
+            <span>學生模擬端</span>
+          </button>
+          <button id="btnSwitchTeacher" onclick="switchView('teacher')" class="px-3 py-1.5 rounded-lg transition-all duration-200 text-slate-600 hover:text-slate-900 flex items-center space-x-1.5">
+            <i class="fa-solid fa-chalkboard-user"></i>
+            <span>教師儀表板 <span id="teacherStudentCountBadge" class="ml-1 px-1.5 py-0.2 bg-blue-600 text-white rounded-full text-[10px]">0</span></span>
+          </button>
+        </div>
+        <button id="btnSettingsIcon" onclick="openConfigModal()" title="雲端試算表設定" class="hidden p-2 rounded-xl text-slate-500 hover:bg-slate-100 transition-colors">
+          <i class="fa-solid fa-gear text-base"></i>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <main class="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 lg:p-8">
+
+    <!-- ========================================== -->
+    <!-- 1. 學生模擬介面 (STUDENT VIEW) -->
+    <!-- ========================================== -->
+    <div id="studentView" class="space-y-6">
+
+      <!-- 學生個人資料輸入卡片 (登入/登記) -->
+      <div id="studentProfileCard" class="bg-white rounded-2xl p-5 sm:p-6 border border-slate-200/80 shadow-sm transition-all duration-300">
+        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-slate-100">
+          <div>
+            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-50 text-amber-700 border border-amber-200">
+              <i class="fa-solid fa-id-card mr-1.5"></i> 學習者檔案登記
+            </span>
+            <h2 class="text-xl font-bold text-slate-900 mt-1">中一理財模擬情景：我是精明理財家</h2>
+            <p class="text-xs text-slate-500">假設你是一名中一學生，未來 3 天每日有 $60 零用錢，你必須妥善規劃交通及午餐開支！</p>
+          </div>
+          <!-- 學生登入狀態徽章 -->
+          <div id="profileStatusBadge" class="hidden items-center gap-2 bg-emerald-50 text-emerald-800 border border-emerald-200 px-3 py-1.5 rounded-xl text-xs font-medium">
+            <i class="fa-solid fa-circle-check text-emerald-600 text-sm"></i>
+            <span>已登入：<strong id="badgeStudentInfo">--</strong></span>
+            <button onclick="editStudentProfile()" class="ml-2 text-slate-400 hover:text-slate-600 underline">修改</button>
+          </div>
+        </div>
+
+        <!-- 學生登記表單 -->
+        <div id="studentInputForm" class="grid grid-cols-1 sm:grid-cols-4 gap-4 pt-4">
+          <div>
+            <label class="block text-xs font-bold text-slate-700 mb-1">班別 (Class) <span class="text-red-500">*</span></label>
+            <select id="inputClass" class="w-full rounded-xl border-slate-300 text-sm focus:ring-blue-500 focus:border-blue-500 bg-slate-50 p-2.5 border">
+              <option value="1A">中一甲 (1A)</option>
+              <option value="1B">中一乙 (1B)</option>
+              <option value="1C">中一丙 (1C)</option>
+              <option value="1D">中一丁 (1D)</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-slate-700 mb-1">學號 (Class No.) <span class="text-red-500">*</span></label>
+            <input type="number" id="inputClassNo" min="1" max="45" placeholder="例如: 15" class="w-full rounded-xl border-slate-300 text-sm focus:ring-blue-500 focus:border-blue-500 bg-slate-50 p-2.5 border">
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-slate-700 mb-1">學生姓名 (Name) <span class="text-red-500">*</span></label>
+            <input type="text" id="inputName" placeholder="例如: 陳大文" class="w-full rounded-xl border-slate-300 text-sm focus:ring-blue-500 focus:border-blue-500 bg-slate-50 p-2.5 border">
+          </div>
+          <div class="flex items-end">
+            <button id="btnSaveProfile" onclick="confirmStudentProfile()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2.5 px-4 rounded-xl text-sm transition-all shadow-md shadow-blue-500/20 flex items-center justify-center space-x-2">
+              <i class="fa-solid fa-arrow-right-to-bracket"></i>
+              <span>開始理財模擬</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 天數進度條 (由教師廣播控制，學生不能自行點擊切換) -->
+      <div class="flex items-center justify-between bg-white p-3 sm:p-4 rounded-2xl border border-slate-200 shadow-sm overflow-x-auto">
+        <div class="flex items-center space-x-2 sm:space-x-4 min-w-max">
+          <!-- Day 1 Step (移除了學生點擊事件) -->
+          <div id="stepTab1" class="flex items-center space-x-2 px-3 py-2 rounded-xl text-xs font-bold bg-blue-600 text-white shadow-sm transition-all select-none">
+            <span class="w-5 h-5 rounded-full bg-white text-blue-600 flex items-center justify-center text-[10px]">1</span>
+            <span>第一天 (Day 1)</span>
+          </div>
+          <i class="fa-solid fa-angle-right text-slate-300 text-xs"></i>
+          <!-- Day 2 Step -->
+          <div id="stepTab2" class="flex items-center space-x-2 px-3 py-2 rounded-xl text-xs font-bold text-slate-400 transition-all select-none">
+            <span class="w-5 h-5 rounded-full bg-slate-200 text-slate-600 flex items-center justify-center text-[10px]">2</span>
+            <span>第二天 (Day 2)</span>
+          </div>
+          <i class="fa-solid fa-angle-right text-slate-300 text-xs"></i>
+          <!-- Day 3 Step -->
+          <div id="stepTab3" class="flex items-center space-x-2 px-3 py-2 rounded-xl text-xs font-bold text-slate-400 transition-all select-none">
+            <span class="w-5 h-5 rounded-full bg-slate-200 text-slate-600 flex items-center justify-center text-[10px]">3</span>
+            <span>第三天 (Day 3)</span>
+          </div>
+          <i class="fa-solid fa-angle-right text-slate-300 text-xs"></i>
+          <!-- Day 4 Step -->
+          <div id="stepTab4" class="flex items-center space-x-2 px-3 py-2 rounded-xl text-xs font-bold text-slate-400 transition-all select-none">
+            <span class="w-5 h-5 rounded-full bg-purple-100 text-purple-700 flex items-center justify-center text-[10px]">★</span>
+            <span>第四天挑戰 (看電影)</span>
+          </div>
+        </div>
+
+        <!-- 總結餘即時預覽小卡片 -->
+        <div class="hidden md:flex items-center space-x-3 bg-slate-50 border border-slate-200 px-3 py-1.5 rounded-xl">
+          <div class="text-right">
+            <div class="text-[10px] text-slate-500 font-medium">現時累積結餘</div>
+            <div id="navTotalBalance" class="text-sm font-black text-blue-700">$0</div>
+          </div>
+          <div id="navHealthStatus" class="px-2 py-1 rounded-md text-[10px] font-bold bg-emerald-100 text-emerald-700">
+            健康良好
+          </div>
+        </div>
+      </div>
+
+      <!-- 天數內容主卡片 -->
+      <div id="dayContentContainer" class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+        <!-- 左邊 2 欄：開支選擇與預算制定 -->
+        <div class="lg:col-span-2 space-y-6">
+
+          <!-- 每日情景導引 -->
+          <div class="bg-gradient-to-r from-blue-900 to-indigo-900 rounded-2xl p-6 text-white shadow-md relative overflow-hidden">
+            <div class="relative z-10">
+              <div class="flex items-center justify-between">
+                <span id="dayHeaderTag" class="px-3 py-1 rounded-full text-xs font-bold bg-white/20 backdrop-blur-sm text-blue-100 border border-white/10">
+                  第 1 天情景模擬
+                </span>
+                <span class="text-xs bg-amber-400 text-slate-900 font-extrabold px-2.5 py-1 rounded-lg">
+                  <i class="fa-solid fa-coins mr-1"></i> 今日收入：$60
+                </span>
+              </div>
+              <h3 id="dayTitleText" class="text-xl sm:text-2xl font-black mt-3">編制第 1 天零用錢運用預算</h3>
+              <p id="daySubtitleText" class="text-xs sm:text-sm text-blue-200 mt-1 max-w-xl">
+                請根據你的實際需要、時間及飽足感，在交通及午餐各選 1 項，並善用「先儲蓄後消費」策略！
+              </p>
+            </div>
+            <!-- 背景裝飾圖標 -->
+            <div class="absolute -right-6 -bottom-6 text-white/10 text-9xl pointer-events-none">
+              <i class="fa-solid fa-wallet"></i>
+            </div>
+          </div>
+
+          <!-- 項目一：交通選擇 (3選1) -->
+          <div class="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm">
+            <div class="flex items-center justify-between mb-4">
+              <div class="flex items-center space-x-2">
+                <div class="w-8 h-8 rounded-lg bg-blue-100 text-blue-700 flex items-center justify-center font-bold text-sm">
+                  <i class="fa-solid fa-bus"></i>
+                </div>
+                <div>
+                  <h4 class="text-sm font-bold text-slate-900">必備項目 1：上學交通 (三選一)</h4>
+                  <p class="text-xs text-slate-400">考慮金錢支出與時間/體力的取捨</p>
+                </div>
+              </div>
+              <span class="text-xs font-semibold text-slate-500" id="transportSelectedLabel">未選擇</span>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3" id="transportOptionsContainer">
+              <!-- Option 1: 步行 -->
+              <label class="cursor-pointer border-2 border-slate-200 rounded-xl p-3.5 hover:border-blue-300 transition-all flex flex-col justify-between radio-card" data-category="transport" data-cost="0">
+                <input type="radio" name="transportChoice" value="walk" class="hidden">
+                <div>
+                  <div class="flex items-center justify-between mb-2">
+                    <span class="font-bold text-sm text-slate-800">1) 步行</span>
+                    <span class="text-xs font-extrabold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">$0</span>
+                  </div>
+                  <p class="text-xs text-slate-500 leading-relaxed">需時 45 分鐘，極耗體力；若連續多天恐影響健康！</p>
+                </div>
+                <div class="mt-3 text-[11px] text-amber-600 font-medium flex items-center">
+                  <i class="fa-solid fa-person-walking mr-1"></i> 需時 45 分鐘
+                </div>
+              </label>
+
+              <!-- Option 2: 巴士 -->
+              <label class="cursor-pointer border-2 border-slate-200 rounded-xl p-3.5 hover:border-blue-300 transition-all flex flex-col justify-between radio-card" data-category="transport" data-cost="10">
+                <input type="radio" name="transportChoice" value="bus" class="hidden">
+                <div>
+                  <div class="flex items-center justify-between mb-2">
+                    <span class="font-bold text-sm text-slate-800">2) 巴士</span>
+                    <span class="text-xs font-extrabold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full">$10</span>
+                  </div>
+                  <p class="text-xs text-slate-500 leading-relaxed">需時 25 分鐘，經濟實惠且兼顧體力平衡。</p>
+                </div>
+                <div class="mt-3 text-[11px] text-blue-600 font-medium flex items-center">
+                  <i class="fa-solid fa-bus-simple mr-1"></i> 需時 25 分鐘
+                </div>
+              </label>
+
+              <!-- Option 3: 的士 -->
+              <label class="cursor-pointer border-2 border-slate-200 rounded-xl p-3.5 hover:border-blue-300 transition-all flex flex-col justify-between radio-card" data-category="transport" data-cost="25">
+                <input type="radio" name="transportChoice" value="taxi" class="hidden">
+                <div>
+                  <div class="flex items-center justify-between mb-2">
+                    <span class="font-bold text-sm text-slate-800">3) 的士</span>
+                    <span class="text-xs font-extrabold text-red-600 bg-red-50 px-2 py-0.5 rounded-full">$25</span>
+                  </div>
+                  <p class="text-xs text-slate-500 leading-relaxed">只需 10 分鐘，最快最舒適但花費高昂！</p>
+                </div>
+                <div class="mt-3 text-[11px] text-red-600 font-medium flex items-center">
+                  <i class="fa-solid fa-taxi mr-1"></i> 需時 10 分鐘
+                </div>
+              </label>
+            </div>
+          </div>
+
+          <!-- 項目二：午餐選擇 (3選1) -->
+          <div class="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm">
+            <div class="flex items-center justify-between mb-4">
+              <div class="flex items-center space-x-2">
+                <div class="w-8 h-8 rounded-lg bg-amber-100 text-amber-700 flex items-center justify-center font-bold text-sm">
+                  <i class="fa-solid fa-utensils"></i>
+                </div>
+                <div>
+                  <h4 class="text-sm font-bold text-slate-900">必備項目 2：學校午餐 (三選一)</h4>
+                  <p class="text-xs text-slate-400">考慮營養飽足與金錢預算的取捨</p>
+                </div>
+              </div>
+              <span class="text-xs font-semibold text-slate-500" id="lunchSelectedLabel">未選擇</span>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3" id="lunchOptionsContainer">
+              <!-- Option 1: 飯盒 -->
+              <label class="cursor-pointer border-2 border-slate-200 rounded-xl p-3.5 hover:border-amber-300 transition-all flex flex-col justify-between radio-card" data-category="lunch" data-cost="35">
+                <input type="radio" name="lunchChoice" value="bento" class="hidden">
+                <div>
+                  <div class="flex items-center justify-between mb-2">
+                    <span class="font-bold text-sm text-slate-800">1) 飯盒</span>
+                    <span class="text-xs font-extrabold text-red-600 bg-red-50 px-2 py-0.5 rounded-full">$35</span>
+                  </div>
+                  <p class="text-xs text-slate-500 leading-relaxed">有肉有菜，營養均衡，一定夠飽！</p>
+                </div>
+                <div class="mt-3 text-[11px] text-emerald-600 font-medium flex items-center">
+                  <i class="fa-solid fa-bowl-rice mr-1"></i> 飽足感：100% 營養豐富
+                </div>
+              </label>
+
+              <!-- Option 2: 烏冬 -->
+              <label class="cursor-pointer border-2 border-slate-200 rounded-xl p-3.5 hover:border-amber-300 transition-all flex flex-col justify-between radio-card" data-category="lunch" data-cost="20">
+                <input type="radio" name="lunchChoice" value="udon" class="hidden">
+                <div>
+                  <div class="flex items-center justify-between mb-2">
+                    <span class="font-bold text-sm text-slate-800">2) 烏冬</span>
+                    <span class="text-xs font-extrabold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full">$20</span>
+                  </div>
+                  <p class="text-xs text-slate-500 leading-relaxed">沒有配菜，清湯烏冬，未必夠飽。</p>
+                </div>
+                <div class="mt-3 text-[11px] text-amber-600 font-medium flex items-center">
+                  <i class="fa-solid fa-bowl-food mr-1"></i> 飽足感：60% 未必夠飽
+                </div>
+              </label>
+
+              <!-- Option 3: 三文治 -->
+              <label class="cursor-pointer border-2 border-slate-200 rounded-xl p-3.5 hover:border-amber-300 transition-all flex flex-col justify-between radio-card" data-category="lunch" data-cost="10">
+                <input type="radio" name="lunchChoice" value="sandwich" class="hidden">
+                <div>
+                  <div class="flex items-center justify-between mb-2">
+                    <span class="font-bold text-sm text-slate-800">3) 三文治</span>
+                    <span class="text-xs font-extrabold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">$10</span>
+                  </div>
+                  <p class="text-xs text-slate-500 leading-relaxed">非常便宜，但不夠飽，連續食用影響健康！</p>
+                </div>
+                <div class="mt-3 text-[11px] text-red-500 font-medium flex items-center">
+                  <i class="fa-solid fa-bread-slice mr-1"></i> 飽足感：30% 容易飢餓
+                </div>
+              </label>
+            </div>
+          </div>
+
+          <!-- 項目三：先儲蓄 / 其他開支預算 -->
+          <div class="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm">
+            <div class="flex items-center justify-between mb-3">
+              <div class="flex items-center space-x-2">
+                <div class="w-8 h-8 rounded-lg bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold text-sm">
+                  <i class="fa-solid fa-hand-holding-dollar"></i>
+                </div>
+                <div>
+                  <h4 class="text-sm font-bold text-slate-900">理財技巧實踐：「先儲蓄，後消費」</h4>
+                  <p class="text-xs text-slate-400">收入 ($60) - 儲蓄 = 可支配支出</p>
+                </div>
+              </div>
+              <span class="text-xs font-medium text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-lg">
+                教育局理財能力重點
+              </span>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
+              <div>
+                <label class="block text-xs font-bold text-slate-700 mb-1">今日計劃儲蓄金 (未花費先存起)</label>
+                <div class="relative">
+                  <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-400 font-bold">$</span>
+                  <input type="number" id="inputDailySaving" min="0" max="60" value="15" oninput="calculateDayBudget()" class="pl-7 w-full rounded-xl border-slate-300 text-sm focus:ring-emerald-500 focus:border-emerald-500 bg-slate-50 p-2.5 border font-semibold text-emerald-700">
+                </div>
+                <p class="text-[11px] text-slate-400 mt-1">建議最少保留 $15-$25 應付不時之需及目標</p>
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-slate-700 mb-1">其他零星預算 (例如文具、零食或備用)</label>
+                <div class="relative">
+                  <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-400 font-bold">$</span>
+                  <input type="number" id="inputOtherExpense" min="0" max="60" value="0" oninput="calculateDayBudget()" class="pl-7 w-full rounded-xl border-slate-300 text-sm focus:ring-blue-500 focus:border-blue-500 bg-slate-50 p-2.5 border font-semibold text-slate-700">
+                </div>
+                <p class="text-[11px] text-slate-400 mt-1">若沒有特殊開支可填 0</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- 確認並鎖定今日預算按鈕 -->
+          <div class="flex items-center justify-between pt-2">
+            <div class="text-xs text-slate-500 flex items-center space-x-1">
+              <i class="fa-solid fa-circle-info text-blue-500"></i>
+              <span>按下確認後，預算資料將同步傳送至老師 Dashboard 及 Google Sheets</span>
+            </div>
+            <button id="btnConfirmBudget" onclick="confirmDayBudget()" class="bg-blue-600 hover:bg-blue-700 text-white font-bold px-6 py-3 rounded-xl text-sm transition-all shadow-lg shadow-blue-600/20 flex items-center space-x-2 disabled:opacity-50">
+              <i class="fa-solid fa-lock"></i>
+              <span id="btnConfirmBudgetText">確認第 1 天預算並鎖定</span>
+            </button>
+          </div>
+
+        </div>
+
+        <!-- 右邊 1 欄：個人記帳本、突發事件舞台與結餘計算 -->
+        <div class="space-y-6">
+
+          <!-- 每日記帳本計算卡片 (依課堂投影片格式) -->
+          <div class="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm">
+            <div class="flex items-center justify-between pb-3 border-b border-slate-100 mb-4">
+              <h4 class="text-sm font-bold text-slate-900 flex items-center space-x-2">
+                <i class="fa-solid fa-calculator text-blue-600"></i>
+                <span id="accountBookDayTitle">第 1 天收支記錄表</span>
+              </h4>
+              <span class="text-xs font-semibold px-2 py-0.5 rounded bg-slate-100 text-slate-600">收入 $60/日</span>
+            </div>
+
+            <div class="space-y-2.5 text-xs">
+              <div class="flex justify-between items-center py-1 border-b border-dashed border-slate-100">
+                <span class="text-slate-500">今日收入 (A)</span>
+                <span class="font-bold text-emerald-600">+$60</span>
+              </div>
+              <div class="flex justify-between items-center py-1 border-b border-dashed border-slate-100">
+                <span class="text-slate-500">交通預算</span>
+                <span id="dispTransportCost" class="font-semibold text-slate-700">$0</span>
+              </div>
+              <div class="flex justify-between items-center py-1 border-b border-dashed border-slate-100">
+                <span class="text-slate-500">午餐預算</span>
+                <span id="dispLunchCost" class="font-semibold text-slate-700">$0</span>
+              </div>
+              <div class="flex justify-between items-center py-1 border-b border-dashed border-slate-100">
+                <span class="text-slate-500">其他開支預算</span>
+                <span id="dispOtherCost" class="font-semibold text-slate-700">$0</span>
+              </div>
+              <div class="flex justify-between items-center py-1.5 bg-blue-50/60 px-2 rounded-lg font-bold">
+                <span class="text-blue-900">總計劃支出 (B)</span>
+                <span id="dispPlannedTotal" class="text-blue-700">$0</span>
+              </div>
+              <div class="flex justify-between items-center py-1 border-b border-dashed border-slate-100">
+                <span class="text-slate-500">突發事件收支 (C)</span>
+                <span id="dispSurpriseImpact" class="font-bold text-amber-600">$0</span>
+              </div>
+              <div class="flex justify-between items-center py-1.5 bg-slate-100 px-2 rounded-lg font-bold">
+                <span class="text-slate-800">實際總支出 (B + C)</span>
+                <span id="dispActualTotal" class="text-slate-900">$0</span>
+              </div>
+              
+              <!-- 結餘結算區 (若負數顯示鮮紅色警報) -->
+              <div id="balanceCard" class="mt-3 p-3 rounded-xl border transition-all duration-300 bg-slate-50 border-slate-200">
+                <div class="flex justify-between items-center">
+                  <div>
+                    <div class="text-[11px] font-semibold text-slate-500">今日結餘 (A - 實際支出)</div>
+                    <div id="dispDayBalance" class="text-xl font-black text-slate-800">$0</div>
+                  </div>
+                  <div class="text-right">
+                    <div class="text-[10px] text-slate-400">連同昨日累計總儲蓄</div>
+                    <div id="dispCumulativeBalance" class="text-base font-extrabold text-blue-700">$0</div>
+                  </div>
+                </div>
+                <div id="deficitAlertBanner" class="hidden mt-2 pt-2 border-t border-red-200 text-[11px] font-bold text-red-600 flex items-center space-x-1">
+                  <i class="fa-solid fa-triangle-exclamation"></i>
+                  <span>警告：入不敷支！結餘呈負數（赤字）！</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 突發事件展示區 (由教師端或學生依進度觸發) -->
+          <div id="studentSurpriseCard" class="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm relative overflow-hidden">
+            <div class="flex items-center justify-between mb-3">
+              <span class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-800 flex items-center">
+                <i class="fa-solid fa-bolt mr-1"></i> 突發事件 (Surprise Event)
+              </span>
+              <span id="surpriseStatusTag" class="text-[11px] text-slate-400">等待進入突發階段</span>
+            </div>
+
+            <div id="surpriseContentEmpty" class="text-center py-8 text-slate-400">
+              <div class="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center mx-auto mb-2 text-slate-400">
+                <i class="fa-solid fa-gift text-lg"></i>
+              </div>
+              <p id="surpriseEmptyHint" class="text-xs font-medium">請先完成今日預算並按「確認鎖定」</p>
+              <p class="text-[11px] text-slate-400 mt-0.5">待老師在主控台下發突發事件指令，系統將即時揭曉！</p>
+            </div>
+
+            <div id="surpriseContentActive" class="hidden space-y-3 pt-1">
+              <div class="p-3.5 rounded-xl bg-amber-50/80 border border-amber-200/80">
+                <div class="flex items-start space-x-3">
+                  <div id="surpriseIconBox" class="w-9 h-9 rounded-xl bg-amber-500 text-white flex items-center justify-center font-bold text-sm shrink-0 shadow-sm">
+                    <i class="fa-solid fa-cake-candles"></i>
+                  </div>
+                  <div>
+                    <h5 id="surpriseEventTitle" class="text-xs font-bold text-slate-900 leading-snug">明天是好朋友生日！</h5>
+                    <p id="surpriseEventDesc" class="text-xs text-slate-600 mt-1">今日放學同學們要一齊夾錢買禮物送給好朋友，每人 $20！</p>
+                  </div>
+                </div>
+                <div class="mt-3 pt-2.5 border-t border-amber-200/60 flex items-center justify-between text-xs">
+                  <span class="font-medium text-slate-500">財務影響：</span>
+                  <span id="surpriseImpactBadge" class="font-black text-red-600 bg-red-100 px-2 py-0.5 rounded-md">額外開支 -$20</span>
+                </div>
+              </div>
+
+              <!-- 突發事件反思引導問題 -->
+              <div class="bg-blue-50/60 p-3 rounded-xl border border-blue-100 text-xs space-y-1">
+                <div class="font-bold text-blue-900 flex items-center space-x-1">
+                  <i class="fa-solid fa-lightbulb text-amber-500"></i>
+                  <span id="surpriseQuestionTitle">反思時刻：</span>
+                </div>
+                <p id="surpriseQuestionText" class="text-slate-600 text-[11px] leading-relaxed">
+                  你有足夠的金錢買禮物給好朋友嗎？為什麼部分同學能夠應付，有些同學卻陷入赤字？
+                </p>
+              </div>
+
+              <!-- 提示學生等待老師廣播進入下一天 -->
+              <div class="p-3 bg-slate-100 rounded-xl text-center text-xs font-bold text-slate-600 border border-slate-200 flex items-center justify-center space-x-2">
+                <i class="fa-solid fa-hourglass-half text-blue-600"></i>
+                <span id="waitNextDayBroadcastText">今日結算完成！請靜候老師廣播進入下一天。</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- 健康與風險警戒線卡片 -->
+          <div id="healthRiskCard" class="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm text-xs space-y-2">
+            <div class="flex items-center justify-between">
+              <span class="font-bold text-slate-700 flex items-center">
+                <i class="fa-solid fa-heart-pulse text-rose-500 mr-1.5"></i> 身體健康指數
+              </span>
+              <span id="healthScoreTag" class="font-bold px-2 py-0.5 rounded bg-emerald-100 text-emerald-700">100 分 (正常)</span>
+            </div>
+            <p class="text-[11px] text-slate-500 leading-relaxed">
+              公經社學習要點：金錢並非唯一考量！過度節省（例如連續吃不夠飽的三文治或步行過勞）將導致身體衰竭入院！
+            </p>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- 第四天總結目標卡片 (Day 4: 偶像電影挑戰 & 總反思) -->
+      <div id="day4SummarySection" class="hidden space-y-6">
+        <div class="bg-white rounded-2xl p-6 sm:p-8 border border-slate-200 shadow-md">
+          <div class="text-center max-w-2xl mx-auto space-y-3">
+            <div id="goalResultIcon" class="w-16 h-16 rounded-full mx-auto flex items-center justify-center text-3xl shadow-lg">
+              <i class="fa-solid fa-film"></i>
+            </div>
+            <span class="inline-block px-3 py-1 rounded-full text-xs font-bold bg-purple-100 text-purple-800">
+              第 4 天終極目標檢視 (當日無零用錢發放)
+            </span>
+            <h3 id="goalResultTitle" class="text-2xl font-black text-slate-900">檢測結果：你能夠同好朋友睇電影嗎？</h3>
+            <p id="goalResultDesc" class="text-xs sm:text-sm text-slate-600 leading-relaxed">
+              好朋友約你於第四天到戲院看偶像參演的電影，門票需要花費 $50。你有足夠儲蓄嗎？你中途有否因體力不支住院？
+            </p>
+          </div>
+
+          <!-- 3天總收支結算矩陣表 -->
+          <div class="mt-8 overflow-x-auto">
+            <table class="w-full text-xs text-left border-collapse">
+              <thead>
+                <tr class="bg-slate-50 text-slate-500 border-b border-slate-200 font-bold">
+                  <th class="py-3 px-3">項目 (開支與記錄)</th>
+                  <th class="py-3 px-3">第 1 天</th>
+                  <th class="py-3 px-3">第 2 天</th>
+                  <th class="py-3 px-3">第 3 天</th>
+                  <th class="py-3 px-3 bg-blue-50/60 text-blue-900">3 天總計</th>
+                </tr>
+              </thead>
+              <tbody id="summaryTableBody" class="divide-y divide-slate-100 font-medium">
+                <!-- 動態注入各天開支 -->
+              </tbody>
+            </table>
+          </div>
+
+          <!-- 學生個人反思過關卡 (Exit Ticket) -->
+          <div class="mt-8 pt-6 border-t border-slate-200">
+            <h4 class="text-sm font-bold text-slate-900 mb-3 flex items-center">
+              <i class="fa-solid fa-pen-fancy text-blue-600 mr-2"></i> 課堂過關卡：個人理財反思與自我檢討
+            </h4>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label class="block text-xs font-bold text-slate-700 mb-1">1. 如果你成功/不成功買到戲票，主要原因是什麼？</label>
+                <textarea id="reflectionQ1" rows="3" class="w-full rounded-xl border-slate-300 text-xs focus:ring-blue-500 focus:border-blue-500 p-2.5 bg-slate-50 border" placeholder="例如：我堅持先儲蓄後消費，所以突發事件時仍有足夠儲備；或者：我買了太昂貴的的士..."></textarea>
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-slate-700 mb-1">2. 經歷這三天模擬後，你在未來現實生活會如何分配零用錢？</label>
+                <textarea id="reflectionQ2" rows="3" class="w-full rounded-xl border-slate-300 text-xs focus:ring-blue-500 focus:border-blue-500 p-2.5 bg-slate-50 border" placeholder="例如：我會為消費排優次，分清「需要」同「想要」，並預留應急儲備..."></textarea>
+              </div>
+            </div>
+
+            <div class="mt-4 flex flex-col sm:flex-row items-center justify-between gap-3">
+              <span class="text-xs text-slate-500">提交過關卡後，老師可以在儀表板閱覽你的反思成果！</span>
+              <button onclick="submitFinalExitTicket()" class="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-6 py-2.5 rounded-xl text-xs transition-all shadow-md flex items-center justify-center space-x-2">
+                <i class="fa-solid fa-paper-plane"></i>
+                <span>提交課堂過關卡</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ========================================== -->
+    <!-- 2. 教師大屏幕儀表板 (TEACHER VIEW) -->
+    <!-- ========================================== -->
+    <div id="teacherView" class="hidden space-y-6">
+
+      <!-- 教師中央情景指揮台 (Session Control) -->
+      <div class="bg-slate-900 text-white rounded-2xl p-5 sm:p-6 shadow-xl border border-slate-800">
+        <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-5 border-b border-slate-800">
+          <div>
+            <div class="flex items-center space-x-2">
+              <span class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-blue-500/20 text-blue-300 border border-blue-400/30">
+                <i class="fa-solid fa-tower-broadcast mr-1"></i> 課堂即時中央廣播控制台
+              </span>
+              <span class="text-xs text-slate-400">目前課堂節奏主導</span>
+            </div>
+            <h2 class="text-xl sm:text-2xl font-black mt-2">公經社 1.3 理財教育：課堂進度與突發事件控制</h2>
+            <p class="text-xs text-slate-400 mt-0.5">統一推動全班進入各天預算，並由老師親自按下按鈕下達「突發事件」指令！</p>
+          </div>
+
+          <!-- 課堂天數快捷廣播按鈕 -->
+          <div class="flex items-center gap-2 flex-wrap">
+            <button onclick="teacherBroadcastDay(1)" class="px-3 py-2 rounded-xl text-xs font-bold bg-blue-600 hover:bg-blue-500 text-white transition-all shadow-md">
+              廣播：第 1 天
+            </button>
+            <button onclick="teacherBroadcastDay(2)" class="px-3 py-2 rounded-xl text-xs font-bold bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition-all">
+              廣播：第 2 天
+            </button>
+            <button onclick="teacherBroadcastDay(3)" class="px-3 py-2 rounded-xl text-xs font-bold bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition-all">
+              廣播：第 3 天
+            </button>
+            <button onclick="teacherBroadcastDay(4)" class="px-3 py-2 rounded-xl text-xs font-bold bg-purple-600 hover:bg-purple-500 text-white transition-all shadow-md">
+              廣播：第 4 天總結
+            </button>
+          </div>
+        </div>
+
+        <!-- 突發事件觸發器 (核心功能 4 & 5) -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 pt-5">
+          <!-- 觸發第 1 天突發 -->
+          <div class="bg-slate-800/80 p-4 rounded-xl border border-slate-700 space-y-2">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-bold text-amber-400">第 1 天突發事件</span>
+              <span class="text-[10px] px-2 py-0.5 rounded bg-slate-700 text-slate-300">-$20 朋友生日禮物</span>
+            </div>
+            <p class="text-xs text-slate-300">學生輸入預算後，按下觸發好朋友生日夾錢 $20 事件。</p>
+            <button onclick="teacherTriggerSurprise(1)" class="w-full bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold py-2 px-3 rounded-lg text-xs transition-all flex items-center justify-center space-x-1.5 shadow-sm">
+              <i class="fa-solid fa-cake-candles"></i>
+              <span>下發第 1 天突發事件</span>
+            </button>
+          </div>
+
+          <!-- 觸發第 2 天突發 -->
+          <div class="bg-slate-800/80 p-4 rounded-xl border border-slate-700 space-y-2">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-bold text-blue-400">第 2 天突發事件</span>
+              <span class="text-[10px] px-2 py-0.5 rounded bg-slate-700 text-slate-300">-$10 慈善賣旗捐款</span>
+            </div>
+            <p class="text-xs text-slate-300">路上遇上賣旗日，考驗學生對金錢用途（捐贈/行善）之取捨。</p>
+            <button onclick="teacherTriggerSurprise(2)" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-2 px-3 rounded-lg text-xs transition-all flex items-center justify-center space-x-1.5 shadow-sm">
+              <i class="fa-solid fa-hand-holding-heart"></i>
+              <span>下發第 2 天突發事件</span>
+            </button>
+          </div>
+
+          <!-- 觸發第 3 天突發 (健康判定) -->
+          <div class="bg-slate-800/80 p-4 rounded-xl border border-slate-700 space-y-2">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-bold text-rose-400">第 3 天突發事件</span>
+              <span class="text-[10px] px-2 py-0.5 rounded bg-slate-700 text-slate-300">健康與住院檢核</span>
+            </div>
+            <p class="text-xs text-slate-300">連續兩天步行或連續兩天吃三文治者，觸發體力不支住院！</p>
+            <button onclick="teacherTriggerSurprise(3)" class="w-full bg-rose-600 hover:bg-rose-500 text-white font-bold py-2 px-3 rounded-lg text-xs transition-all flex items-center justify-center space-x-1.5 shadow-sm">
+              <i class="fa-solid fa-hospital"></i>
+              <span>執行第 3 天健康檢核</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 全班實時統計指標牌 (KPIs) -->
+      <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <!-- 指標 1: 登記人數 -->
+        <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
+          <div class="flex items-center justify-between text-slate-500 text-xs">
+            <span>已加入學生</span>
+            <i class="fa-solid fa-users text-blue-500"></i>
+          </div>
+          <div id="statTotalStudents" class="text-2xl font-black text-slate-900 mt-2">0 人</div>
+          <div class="text-[11px] text-slate-400 mt-0.5">即時在線連線</div>
+        </div>
+
+        <!-- 指標 2: 赤字警戒人數 (結餘 < 0) -->
+        <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
+          <div class="flex items-center justify-between text-slate-500 text-xs">
+            <span>入不敷支 (赤字人數)</span>
+            <i class="fa-solid fa-triangle-exclamation text-red-500"></i>
+          </div>
+          <div id="statDeficitCount" class="text-2xl font-black text-red-600 mt-2">0 人</div>
+          <div class="text-[11px] text-red-500 mt-0.5">結餘呈負數，需引導檢討</div>
+        </div>
+
+        <!-- 指標 3: 住院人數 (健康受損) -->
+        <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
+          <div class="flex items-center justify-between text-slate-500 text-xs">
+            <span>體力不支入院人數</span>
+            <i class="fa-solid fa-bed-pulse text-amber-500"></i>
+          </div>
+          <div id="statHospitalCount" class="text-2xl font-black text-amber-600 mt-2">0 人</div>
+          <div class="text-[11px] text-slate-400 mt-0.5">因過度節省犧牲健康</div>
+        </div>
+
+        <!-- 指標 4: 成功睇戲達成率 -->
+        <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
+          <div class="flex items-center justify-between text-slate-500 text-xs">
+            <span>成功達成睇戲目標 ($50)</span>
+            <i class="fa-solid fa-ticket text-emerald-500"></i>
+          </div>
+          <div id="statSuccessGoalCount" class="text-2xl font-black text-emerald-600 mt-2">0%</div>
+          <div class="text-[11px] text-emerald-600 mt-0.5">健康良好且結餘 ≥ $50</div>
+        </div>
+      </div>
+
+      <!-- 全班學生實時數據矩陣表 (Live Student Submissions Table) -->
+      <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+        <div class="p-4 sm:p-5 border-b border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div>
+            <h3 class="text-base font-bold text-slate-900 flex items-center space-x-2">
+              <i class="fa-solid fa-table-list text-blue-600"></i>
+              <span>全班學生即時理財決策監察表 (實時更新)</span>
+            </h3>
+            <p class="text-xs text-slate-500">點擊個別學生可檢視詳細的每天開支及過關卡反思內容</p>
+          </div>
+
+          <!-- 工具按鈕：新增模擬學生、一鍵匯出 CSV、同步至 Google Sheets -->
+          <div class="flex items-center space-x-2">
+            <button onclick="injectDemoClassData()" class="px-3 py-1.5 rounded-xl border border-slate-300 text-xs font-semibold text-slate-600 hover:bg-slate-50">
+              <i class="fa-solid fa-wand-magic-sparkles mr-1"></i> 載入示範學生數據
+            </button>
+            <button onclick="exportToCSV()" class="px-3 py-1.5 rounded-xl border border-slate-300 text-xs font-semibold text-slate-600 hover:bg-slate-50">
+              <i class="fa-solid fa-file-csv mr-1"></i> 匯出 CSV
+            </button>
+            <button onclick="triggerSyncToGoogleSheets()" class="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold shadow-sm flex items-center space-x-1">
+              <i class="fa-brands fa-google-drive"></i>
+              <span>同步至 Google 試算表</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- 數據表格 -->
+        <div class="overflow-x-auto">
+          <table class="w-full text-xs text-left border-collapse">
+            <thead class="bg-slate-50 text-slate-600 font-bold border-b border-slate-200">
+              <tr>
+                <th class="py-3 px-3">班別</th>
+                <th class="py-3 px-3">學號</th>
+                <th class="py-3 px-3">學生姓名</th>
+                <th class="py-3 px-3">第 1 天選擇 / 結餘</th>
+                <th class="py-3 px-3">第 2 天選擇 / 結餘</th>
+                <th class="py-3 px-3">第 3 天選擇 / 結餘</th>
+                <th class="py-3 px-3">累計總結餘</th>
+                <th class="py-3 px-3">健康狀態</th>
+                <th class="py-3 px-3">第4天目標結果</th>
+                <th class="py-3 px-3 text-right">操作</th>
+              </tr>
+            </thead>
+            <tbody id="teacherTableBody" class="divide-y divide-slate-100 font-medium">
+              <!-- 動態生成各學生行 -->
+              <tr>
+                <td colspan="10" class="py-10 text-center text-slate-400">
+                  <i class="fa-solid fa-user-clock text-3xl mb-2 text-slate-300"></i>
+                  <p>目前尚無學生提交預算，請切換至學生端進行輸入，或點選上方「載入示範學生數據」。</p>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- 教育局課程專家建議：評課與說課提問指引 (Pedagogical Reflection Box) -->
+      <div class="bg-gradient-to-br from-indigo-50 to-blue-50 border border-blue-200/80 rounded-2xl p-5 sm:p-6 space-y-4">
+        <div class="flex items-center space-x-2 text-blue-900 font-bold text-sm">
+          <i class="fa-solid fa-graduation-cap text-base text-blue-700"></i>
+          <span>課程專家備課與評課錦囊（對接公經社單元 1.3 核心學習成果）</span>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
+          <div class="bg-white p-3.5 rounded-xl border border-blue-100 shadow-xs">
+            <h5 class="font-bold text-slate-900 mb-1 flex items-center text-blue-700">
+              <i class="fa-solid fa-comments mr-1.5"></i> 核心提問 (第 1 天後)
+            </h5>
+            <p class="text-slate-600 leading-relaxed">
+              「點解有啲同學能夠買到生日禮物給好朋友，有啲卻需要借錢或結餘變負數？」——引導學生察覺<strong>「先儲蓄後消費」</strong>的預防保障功能。
+            </p>
+          </div>
+          <div class="bg-white p-3.5 rounded-xl border border-blue-100 shadow-xs">
+            <h5 class="font-bold text-slate-900 mb-1 flex items-center text-amber-700">
+              <i class="fa-solid fa-heart-crack mr-1.5"></i> 核心提問 (第 3 天後)
+            </h5>
+            <p class="text-slate-600 leading-relaxed">
+              「部分同學為咗儲蓄 $50，連續食三文治或行路 45 分鐘搞到入院，呢個係咪真正嘅理性理財？」——強調<strong>金錢管理必須兼顧個人健康與基本福祉</strong>。
+            </p>
+          </div>
+          <div class="bg-white p-3.5 rounded-xl border border-blue-100 shadow-xs">
+            <h5 class="font-bold text-slate-900 mb-1 flex items-center text-emerald-700">
+              <i class="fa-solid fa-award mr-1.5"></i> 延伸價值觀培育
+            </h5>
+            <p class="text-slate-600 leading-relaxed">
+              結合第 2 天賣旗日，啟發學生認識金錢除了個人消費，亦具備<strong>慈善捐贈、回饋社會</strong>的崇高意義，培養關愛與公民責任感。
+            </p>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+  </main>
+
+  <!-- 雲端設定彈窗 (Google Sheets Webhook 整合設定) -->
+  <div id="configModal" class="hidden fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-slate-100 space-y-4">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+        <h3 class="text-base font-bold text-slate-900 flex items-center space-x-2">
+          <i class="fa-solid fa-cloud-arrow-up text-blue-600"></i>
+          <span>Google Sheets 實時記錄串接設定</span>
+        </h3>
+        <button onclick="closeConfigModal()" class="text-slate-400 hover:text-slate-600">
+          <i class="fa-solid fa-xmark text-lg"></i>
+        </button>
+      </div>
+
+      <div class="space-y-3 text-xs">
+        <p class="text-slate-600 leading-relaxed">
+          老師可建立一個 Google 試算表，並部署簡單的 <strong>Google Apps Script (Web App)</strong>。學生每按一次確認或完成突發事件，資料會即時 POST 到試算表中！
+        </p>
+
+        <div>
+          <label class="block font-bold text-slate-700 mb-1">Google Apps Script Webhook URL</label>
+          <input type="url" id="inputGoogleSheetUrl" placeholder="https://script.google.com/macros/s/.../exec" class="w-full rounded-xl border-slate-300 text-xs p-2.5 bg-slate-50 border focus:ring-blue-500 focus:border-blue-500">
+          <p class="text-[11px] text-slate-400 mt-1">若留空，系統仍會透過瀏覽器 LocalStorage 即時跨分頁同步，適合投影課堂示範。</p>
+        </div>
+
+        <div class="bg-slate-50 p-3 rounded-xl border border-slate-200">
+          <div class="font-bold text-slate-800 mb-1 flex items-center justify-between">
+            <span>快速 Apps Script 程式碼範例</span>
+            <button onclick="copyAppsScriptSample()" class="text-blue-600 hover:underline text-[11px]">複製代碼</button>
+          </div>
+          <pre id="appsScriptCode" class="text-[10px] text-slate-600 bg-white p-2 rounded border border-slate-200 overflow-x-auto">function doPost(e) {
+  var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+  var d = JSON.parse(e.postData.contents);
+  sheet.appendRow([new Date(), d.class, d.classNo, d.name, d.day, d.transport, d.lunch, d.planned, d.actual, d.balance, d.health]);
+  return ContentService.createTextOutput("OK");
+}</pre>
+        </div>
+      </div>
+
+      <div class="flex items-center justify-end space-x-2 pt-2">
+        <button onclick="closeConfigModal()" class="px-4 py-2 rounded-xl border border-slate-300 text-xs font-semibold text-slate-600 hover:bg-slate-50">
+          取消
+        </button>
+        <button onclick="saveGoogleSheetConfig()" class="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold shadow-md">
+          儲存設定
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 學生個案詳細彈窗 (教師端點擊檢視) -->
+  <div id="studentDetailModal" class="hidden fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-2xl w-full p-6 shadow-2xl border border-slate-100 space-y-4 max-h-[90vh] overflow-y-auto">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+        <div class="flex items-center space-x-2">
+          <div class="w-8 h-8 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center font-bold text-xs" id="detailAvatar">
+            1A
+          </div>
+          <div>
+            <h3 class="text-base font-bold text-slate-900" id="detailStudentTitle">學生理財歷程詳情</h3>
+            <p class="text-xs text-slate-400" id="detailStudentMeta">班別與學號</p>
+          </div>
+        </div>
+        <button onclick="closeStudentDetailModal()" class="text-slate-400 hover:text-slate-600">
+          <i class="fa-solid fa-xmark text-lg"></i>
+        </button>
+      </div>
+
+      <div id="detailModalBody" class="space-y-4 text-xs">
+        <!-- 動態填充詳細資料 -->
+      </div>
+
+      <div class="flex justify-end pt-2">
+        <button onclick="closeStudentDetailModal()" class="px-4 py-2 rounded-xl bg-slate-900 text-white text-xs font-bold">
+          關閉
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    /* =========================================================================
+       1. GLOBAL CONSTANTS & EVENT DEFINITIONS (依投影片及課堂教材精確配寘)
+       ========================================================================= */
+    const DAILY_INCOME = 60; // 每日零用錢 $60
+
+    // 開支項目參數表 (對接公經社投影片 P.4, P.7, P.17, P.22)
+    const OPTIONS_CONFIG = {
+      transport: {
+        walk: { name: '步行', cost: 0, time: 45, healthRisk: true, desc: '需時45分鐘，極耗體力' },
+        bus: { name: '巴士', cost: 10, time: 25, healthRisk: false, desc: '需時25分鐘，平穩省時' },
+        taxi: { name: '的士', cost: 25, time: 10, healthRisk: false, desc: '需時10分鐘，最舒適但昂貴' }
+      },
+      lunch: {
+        bento: { name: '飯盒', cost: 35, fullness: '100%', healthRisk: false, desc: '有肉有菜，一定夠飽' },
+        udon: { name: '烏冬', cost: 20, fullness: '60%', healthRisk: false, desc: '沒有配菜，未必夠飽' },
+        sandwich: { name: '三文治', cost: 10, fullness: '30%', healthRisk: true, desc: '非常便宜但不夠飽' }
+      }
+    };
+
+    // 突發事件定義 (對接投影片 P.9, P.19, P.24, P.27)
+    const SURPRISE_EVENTS = {
+      1: {
+        title: '明天是好朋友生日！放學夾錢買禮物',
+        desc: '放學時同學們圍在一起商討，決定每人夾 $20 買生日禮物給壽星！這筆開支不在原訂預算之內。',
+        impact: -20,
+        icon: 'fa-cake-candles',
+        question: '你有足夠金錢買禮物給好朋友嗎？為什麼有同學能夠應付？因為有預留儲蓄！'
+      },
+      2: {
+        title: '路上正舉行賣旗活動 (新界區賣旗日)',
+        desc: '上學途中遇上慈善賣旗籌款，為支持社會弱勢社群，決定捐出 $10 購買旗貼行善。',
+        impact: -10,
+        icon: 'fa-hand-holding-heart',
+        question: '金錢不單可以用於滿足個人消費，更能發揮仁愛之心回饋社會！'
+      },
+      3: {
+        title: '身體健康大檢驗：長期過度節流危機！',
+        desc: '第二、三天連續兩天步行上學，或連續兩天午餐只吃三文治者，因體力不支住院，需取消第四天看電影行程！',
+        impact: 0,
+        icon: 'fa-hospital',
+        question: '理財必須量入為出，但不應以犧牲身體健康為代價！'
+      }
+    };
+
+    // 當前學生狀態 (Current Student State)
+    let currentStudent = {
+      id: '',
+      class: '1A',
+      classNo: '',
+      name: '',
+      currentDay: 1,
+      healthStatus: 'healthy', // 'healthy' or 'hospital'
+      healthHistory: [], // 記錄每天行為
+      records: {
+        1: { transport: null, lunch: null, savingPlan: 15, other: 0, plannedTotal: 0, budgetLocked: false, surpriseDone: false, actualTotal: 0, balance: 60 },
+        2: { transport: null, lunch: null, savingPlan: 15, other: 0, plannedTotal: 0, budgetLocked: false, surpriseDone: false, actualTotal: 0, balance: 60 },
+        3: { transport: null, lunch: null, savingPlan: 15, other: 0, plannedTotal: 0, budgetLocked: false, surpriseDone: false, actualTotal: 0, balance: 60 }
+      },
+      exitTicket: { q1: '', q2: '', submitted: false }
+    };
+
+    // 全班學生數據庫 (在本地廣播與 LocalStorage 同步)
+    let classStudents = [];
+    let googleSheetWebhookUrl = '';
+    let isTeacherUser = false; // 是否具備教師權限
+
+    window.onload = function() {
+      checkTeacherPermission();
+      loadStorageData();
+      setupOptionListeners();
+      setupStorageBroadcastListener();
+      updateViewDisplay();
+      calculateDayBudget();
+    };
+
+    // 檢查網址參數：只有加上 ?role=teacher 或 ?mode=teacher 時才顯示教師介面
+    function checkTeacherPermission() {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('role') === 'teacher' || params.get('mode') === 'teacher') {
+        isTeacherUser = true;
+        document.getElementById('modeSwitcherContainer').classList.remove('hidden');
+        document.getElementById('modeSwitcherContainer').classList.add('flex');
+        document.getElementById('btnSettingsIcon').classList.remove('hidden');
+      } else {
+        isTeacherUser = false;
+        document.getElementById('modeSwitcherContainer').classList.add('hidden');
+        document.getElementById('btnSettingsIcon').classList.add('hidden');
+        // 確保學生始終停留在學生介面
+        document.getElementById('studentView').classList.remove('hidden');
+        document.getElementById('teacherView').classList.add('hidden');
+      }
+    }
+
+    // 更新視圖呈現與當前進度狀態
+    function updateViewDisplay() {
+      if (currentStudent.currentDay === 4) {
+        gotoDay(4);
+      } else {
+        setupDayView(currentStudent.currentDay || 1);
+      }
+    }
+
+    window.onload = function() {
+      loadStorageData();
+      setupOptionListeners();
+      setupStorageBroadcastListener();
+      updateViewDisplay();
+      calculateDayBudget();
+    };
+
+    // 載入本地儲存資料
+    function loadStorageData() {
+      try {
+        const savedStudent = localStorage.getItem('edb_fin_student');
+        if (savedStudent) {
+          currentStudent = JSON.parse(savedStudent);
+          document.getElementById('inputClass').value = currentStudent.class;
+          document.getElementById('inputClassNo').value = currentStudent.classNo;
+          document.getElementById('inputName').value = currentStudent.name;
+          if (currentStudent.name && currentStudent.classNo) {
+            lockStudentProfileUI();
+          }
+        }
+        const savedClass = localStorage.getItem('edb_fin_all_students');
+        if (savedClass) {
+          classStudents = JSON.parse(savedClass);
+        }
+        const savedUrl = localStorage.getItem('edb_fin_gsheet_url');
+        if (savedUrl) {
+          googleSheetWebhookUrl = savedUrl;
+          document.getElementById('inputGoogleSheetUrl').value = savedUrl;
+        }
+      } catch (e) {
+        console.warn('LocalStorage error:', e);
+      }
+      renderTeacherTable();
+    }
+
+    // 儲存狀態至 LocalStorage
+    function persistData() {
+      try {
+        localStorage.setItem('edb_fin_student', JSON.stringify(currentStudent));
+        
+        // 更新並存儲全班名冊
+        if (currentStudent.id) {
+          const idx = classStudents.findIndex(s => s.id === currentStudent.id);
+          if (idx >= 0) {
+            classStudents[idx] = JSON.parse(JSON.stringify(currentStudent));
+          } else {
+            classStudents.push(JSON.parse(JSON.stringify(currentStudent)));
+          }
+          localStorage.setItem('edb_fin_all_students', JSON.stringify(classStudents));
+          // 廣播跨頁面事件
+          broadcastCrossTabUpdate();
+        }
+      } catch (e) {
+        console.warn('Storage persist error:', e);
+      }
+      renderTeacherTable();
+    }
+
+    // 跨視窗/分頁實時廣播監聽 (支援教師投影大屏幕與學生同機或跨機同步)
+    function setupStorageBroadcastListener() {
+      window.addEventListener('storage', function(e) {
+        if (e.key === 'edb_fin_all_students' && e.newValue) {
+          classStudents = JSON.parse(e.newValue);
+          renderTeacherTable();
+        }
+        if (e.key === 'edb_fin_broadcast_command' && e.newValue) {
+          handleTeacherBroadcastCommand(JSON.parse(e.newValue));
+        }
+      });
+    }
+
+    function broadcastCrossTabUpdate() {
+      localStorage.setItem('edb_fin_last_updated', Date.now().toString());
+    }
+
+    function confirmStudentProfile() {
+      const cls = document.getElementById('inputClass').value;
+      const cno = document.getElementById('inputClassNo').value.trim();
+      const name = document.getElementById('inputName').value.trim();
+
+      if (!cno || !name) {
+        alertModal('請先填寫學號及學生姓名！');
+        return;
+      }
+
+      currentStudent.id = `${cls}_${cno}_${name}`;
+      currentStudent.class = cls;
+      currentStudent.classNo = cno;
+      currentStudent.name = name;
+
+      lockStudentProfileUI();
+      persistData();
+      alertModal(`歡迎同學 ${name} (班別: ${cls} 學號: ${cno})！已成功建立你的理財歷程檔。`);
+    }
+
+    function lockStudentProfileUI() {
+      document.getElementById('studentInputForm').classList.add('hidden');
+      document.getElementById('profileStatusBadge').classList.remove('hidden');
+      document.getElementById('profileStatusBadge').classList.add('flex');
+      document.getElementById('badgeStudentInfo').innerText = `${currentStudent.class} (${currentStudent.classNo}) ${currentStudent.name}`;
+    }
+
+    function editStudentProfile() {
+      document.getElementById('studentInputForm').classList.remove('hidden');
+      document.getElementById('profileStatusBadge').classList.add('hidden');
+      document.getElementById('profileStatusBadge').classList.remove('flex');
+    }
+
+    function setupOptionListeners() {
+      const radioCards = document.querySelectorAll('.radio-card');
+      radioCards.forEach(card => {
+        card.addEventListener('click', function(e) {
+          const day = currentStudent.currentDay;
+          const rec = currentStudent.records[day];
+
+          // 如果當日預算已被鎖定，禁止更改選項
+          if (rec && rec.budgetLocked) {
+            alertModal('今日預算已經確認並鎖定，無法再更改選項！');
+            return;
+          }
+
+          const cat = this.getAttribute('data-category');
+          const radio = this.querySelector('input[type="radio"]');
+          radio.checked = true;
+
+          // 取消同類別卡片的高亮
+          document.querySelectorAll(`.radio-card[data-category="${cat}"]`).forEach(c => {
+            c.classList.remove('border-blue-600', 'bg-blue-50/50', 'border-amber-600', 'bg-amber-50/50', 'shadow-md');
+          });
+
+          // 設置當前高亮
+          if (cat === 'transport') {
+            this.classList.add('border-blue-600', 'bg-blue-50/50', 'shadow-md');
+            document.getElementById('transportSelectedLabel').innerText = `已選：${OPTIONS_CONFIG.transport[radio.value].name} ($${OPTIONS_CONFIG.transport[radio.value].cost})`;
+            currentStudent.records[currentStudent.currentDay].transport = radio.value;
+          } else {
+            this.classList.add('border-amber-600', 'bg-amber-50/50', 'shadow-md');
+            document.getElementById('lunchSelectedLabel').innerText = `已選：${OPTIONS_CONFIG.lunch[radio.value].name} ($${OPTIONS_CONFIG.lunch[radio.value].cost})`;
+            currentStudent.records[currentStudent.currentDay].lunch = radio.value;
+          }
+
+          calculateDayBudget();
+        });
+      });
+    }
+
+    function calculateDayBudget() {
+      const day = currentStudent.currentDay;
+      if (day > 3) return;
+
+      const record = currentStudent.records[day];
+      const transportCost = record.transport ? OPTIONS_CONFIG.transport[record.transport].cost : 0;
+      const lunchCost = record.lunch ? OPTIONS_CONFIG.lunch[record.lunch].cost : 0;
+      
+      const savingPlan = parseInt(document.getElementById('inputDailySaving').value) || 0;
+      const otherCost = parseInt(document.getElementById('inputOtherExpense').value) || 0;
+
+      record.savingPlan = savingPlan;
+      record.other = otherCost;
+      record.plannedTotal = transportCost + lunchCost + otherCost;
+
+      // 突發事件影響：只有在 surpriseDone 為 true（教師已下發突發）時才計入扣款！
+      let surpriseCost = 0;
+      if (record.surpriseDone && SURPRISE_EVENTS[day]) {
+        surpriseCost = Math.abs(SURPRISE_EVENTS[day].impact);
+      }
+
+      record.actualTotal = record.plannedTotal + surpriseCost;
+      record.balance = DAILY_INCOME - record.actualTotal;
+
+      // 渲染畫面上的記帳本
+      document.getElementById('dispTransportCost').innerText = `$${transportCost}`;
+      document.getElementById('dispLunchCost').innerText = `$${lunchCost}`;
+      document.getElementById('dispOtherCost').innerText = `$${otherCost}`;
+      document.getElementById('dispPlannedTotal').innerText = `$${record.plannedTotal}`;
+      document.getElementById('dispSurpriseImpact').innerText = record.surpriseDone ? (surpriseCost > 0 ? `-$${surpriseCost}` : '$0') : '$0 (未觸發)';
+      document.getElementById('dispActualTotal').innerText = `$${record.actualTotal}`;
+
+      // 結餘與累積結餘
+      document.getElementById('dispDayBalance').innerText = `$${record.balance}`;
+      
+      // 計算從 Day 1 到今日的累計餘額
+      const cumBalance = calculateCumulativeBalance(day);
+      document.getElementById('dispCumulativeBalance').innerText = `$${cumBalance}`;
+      document.getElementById('navTotalBalance').innerText = `$${cumBalance}`;
+
+      // 赤字警報判定 (負數高亮鮮紅)
+      const balanceCard = document.getElementById('balanceCard');
+      const deficitBanner = document.getElementById('deficitAlertBanner');
+      const dayBalanceText = document.getElementById('dispDayBalance');
+
+      if (record.balance < 0 || cumBalance < 0) {
+        balanceCard.classList.remove('bg-slate-50', 'border-slate-200');
+        balanceCard.classList.add('bg-red-50', 'border-red-400');
+        dayBalanceText.classList.remove('text-slate-800', 'text-blue-700');
+        dayBalanceText.classList.add('text-red-600');
+        deficitBanner.classList.remove('hidden');
+      } else {
+        balanceCard.classList.add('bg-slate-50', 'border-slate-200');
+        balanceCard.classList.remove('bg-red-50', 'border-red-400');
+        dayBalanceText.classList.add('text-slate-800');
+        dayBalanceText.classList.remove('text-red-600');
+        deficitBanner.classList.add('hidden');
+      }
+    }
+
+    // 計算累計總結餘
+    function calculateCumulativeBalance(upToDay) {
+      let total = 0;
+      for (let d = 1; d <= upToDay; d++) {
+        if (currentStudent.records[d]) {
+          total += currentStudent.records[d].balance;
+        }
+      }
+      return total;
+    }
+
+    function confirmDayBudget() {
+      const day = currentStudent.currentDay;
+      const rec = currentStudent.records[day];
+
+      if (!currentStudent.name) {
+        alertModal('請先在上方登記班別與姓名！');
+        return;
+      }
+      if (!rec.transport) {
+        alertModal('請為今日選擇一項交通工具！');
+        return;
+      }
+      if (!rec.lunch) {
+        alertModal('請為今日選擇一項午餐！');
+        return;
+      }
+
+      // 1. 鎖定當日預算選項，禁止學生再次修改
+      rec.budgetLocked = true;
+      document.getElementById('inputDailySaving').disabled = true;
+      document.getElementById('inputOtherExpense').disabled = true;
+
+      // 2. 更新按鈕外觀為「已鎖定」
+      const btn = document.getElementById('btnConfirmBudget');
+      btn.disabled = true;
+      btn.innerHTML = `<i class="fa-solid fa-lock mr-1"></i> 第 ${day} 天預算已確認鎖定`;
+      btn.classList.replace('bg-blue-600', 'bg-emerald-600');
+
+      // 3. 突發事件區塊保持等待狀態，更新提示文字（不揭曉、不扣錢）
+      document.getElementById('surpriseEmptyHint').innerText = '✅ 預算已鎖定！請注意黑板，等候老師下發突發事件指令...';
+      document.getElementById('surpriseStatusTag').innerText = '已鎖定，等候指令';
+      document.getElementById('surpriseStatusTag').className = 'text-[11px] font-bold text-blue-600';
+
+      // 4. 計算收支表（只計算交通、午餐等預算，突發事件尚未計入）
+      calculateDayBudget();
+      persistData();
+
+      alertModal(`第 ${day} 天預算已鎖定！資料已同步至老師儀表板，請留意老師廣播突發事件。`);
+      sendRecordToGoogleSheets(day, '預算確認鎖定(待突發事件)');
+    }
+
+    function executeSurpriseEvent(day) {
+      const rec = currentStudent.records[day];
+      if (!rec) return;
+
+      // 標記突發事件已完成
+      rec.surpriseDone = true;
+
+      // 顯示突發事件內容
+      document.getElementById('surpriseContentEmpty').classList.add('hidden');
+      document.getElementById('surpriseContentActive').classList.remove('hidden');
+      document.getElementById('surpriseStatusTag').innerText = '突發事件已揭曉';
+      document.getElementById('surpriseStatusTag').className = 'text-[11px] font-bold text-amber-600';
+
+      renderSurpriseEventUI(day);
+
+      // 自動計入突發事件開支，並更新結餘與健康狀態
+      calculateDayBudget();
+      checkHealthConditions();
+      persistData();
+
+      sendRecordToGoogleSheets(day, '突發事件扣款結算');
+      alertModal(`【突發事件通知】老師已下發第 ${day} 天突發事件！收支記錄表已自動扣除相關費用。`);
+    }
+
+    function renderSurpriseEventUI(day) {
+      const evt = SURPRISE_EVENTS[day];
+      if (!evt) return;
+
+      document.getElementById('surpriseEventTitle').innerText = evt.title;
+      document.getElementById('surpriseEventDesc').innerText = evt.desc;
+      document.getElementById('surpriseImpactBadge').innerText = evt.impact < 0 ? `額外開支 -$${Math.abs(evt.impact)}` : '健康風險檢驗';
+      document.getElementById('surpriseQuestionText').innerText = evt.question;
+      document.getElementById('surpriseIconBox').innerHTML = `<i class="fa-solid ${evt.icon}"></i>`;
+      
+      const waitText = document.getElementById('waitNextDayBroadcastText');
+      if (day === 3) {
+        waitText.innerText = '第 3 天突發事件已結算！請靜候老師廣播進入【第 4 天終極挑戰 (看電影)】。';
+      } else {
+        waitText.innerText = `第 ${day} 天突發事件已結算！請靜候老師廣播進入【第 ${day + 1} 天】。`;
+      }
+    }
+
+    // 依投影片 P.24 判定：第二、三天連續兩天步行上學 或 連續兩天午餐只吃三文治 -> 體力不支住院
+    function checkHealthConditions() {
+      const r2 = currentStudent.records[2];
+      const r3 = currentStudent.records[3];
+
+      let isHospitalized = false;
+      let reason = '';
+
+      if (r2.transport === 'walk' && r3.transport === 'walk') {
+        isHospitalized = true;
+        reason = '第2及第3天連續步行（每天耗時45分鐘），體力透支過度！';
+      } else if (r2.lunch === 'sandwich' && r3.lunch === 'sandwich') {
+        isHospitalized = true;
+        reason = '第2及第3天連續只吃三文治，嚴重營養不良，體力不支！';
+      }
+
+      const healthTag = document.getElementById('healthScoreTag');
+      const navHealth = document.getElementById('navHealthStatus');
+
+      if (isHospitalized) {
+        currentStudent.healthStatus = 'hospital';
+        healthTag.className = 'font-bold px-2 py-0.5 rounded bg-red-100 text-red-700 animate-pulse';
+        healthTag.innerHTML = `<i class="fa-solid fa-hospital mr-1"></i> 體力不支入院中`;
+        navHealth.className = 'px-2 py-1 rounded-md text-[10px] font-bold bg-red-100 text-red-700';
+        navHealth.innerText = '入院 (健康警報)';
+        alertModal(`【健康警報】${reason} 根據模擬情景，你已被送院休息，將無法在第四天與朋友看電影！`);
+      } else {
+        currentStudent.healthStatus = 'healthy';
+        healthTag.className = 'font-bold px-2 py-0.5 rounded bg-emerald-100 text-emerald-700';
+        healthTag.innerText = '100 分 (正常)';
+        navHealth.className = 'px-2 py-1 rounded-md text-[10px] font-bold bg-emerald-100 text-emerald-700';
+        navHealth.innerText = '健康良好';
+      }
+    }
+
+    function proceedToNextDay() {
+      const nextDay = currentStudent.currentDay + 1;
+      gotoDay(nextDay);
+    }
+
+    function gotoDay(day) {
+      if (day > 4) day = 4;
+      currentStudent.currentDay = day;
+
+      // 更新進度步驟外觀（純展示，學生不能手動點擊）
+      for (let d = 1; d <= 4; d++) {
+        const tab = document.getElementById(`stepTab${d}`);
+        if (!tab) continue;
+        if (d === day) {
+          tab.className = 'flex items-center space-x-2 px-3 py-2 rounded-xl text-xs font-bold bg-blue-600 text-white shadow-sm transition-all select-none';
+        } else if (d < day) {
+          tab.className = 'flex items-center space-x-2 px-3 py-2 rounded-xl text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 transition-all select-none';
+        } else {
+          tab.className = 'flex items-center space-x-2 px-3 py-2 rounded-xl text-xs font-bold text-slate-400 transition-all select-none';
+        }
+      }
+
+      if (day === 4) {
+        document.getElementById('dayContentContainer').classList.add('hidden');
+        document.getElementById('day4SummarySection').classList.remove('hidden');
+        renderDay4Summary();
+      } else {
+        document.getElementById('dayContentContainer').classList.remove('hidden');
+        document.getElementById('day4SummarySection').classList.add('hidden');
+        setupDayView(day);
+      }
+
+      persistData();
+    }
+
+    function setupDayView(day) {
+      document.getElementById('dayHeaderTag').innerText = `第 ${day} 天情景模擬`;
+      document.getElementById('dayTitleText').innerText = `編制第 ${day} 天零用錢運用預算`;
+      document.getElementById('accountBookDayTitle').innerText = `第 ${day} 天收支記錄表`;
+
+      const rec = currentStudent.records[day];
+
+      // 重設選擇狀態
+      document.querySelectorAll('.radio-card').forEach(c => {
+        c.classList.remove('border-blue-600', 'bg-blue-50/50', 'border-amber-600', 'bg-amber-50/50', 'shadow-md');
+        const input = c.querySelector('input');
+        input.checked = false;
+      });
+
+      // 還原當日已存選項
+      if (rec.transport) {
+        const tCard = document.querySelector(`.radio-card[data-category="transport"] input[value="${rec.transport}"]`)?.parentElement;
+        if (tCard) {
+          tCard.classList.add('border-blue-600', 'bg-blue-50/50');
+          tCard.querySelector('input').checked = true;
+          document.getElementById('transportSelectedLabel').innerText = `已選：${OPTIONS_CONFIG.transport[rec.transport].name} ($${OPTIONS_CONFIG.transport[rec.transport].cost})`;
+        }
+      } else {
+        document.getElementById('transportSelectedLabel').innerText = '未選擇';
+      }
+
+      if (rec.lunch) {
+        const lCard = document.querySelector(`.radio-card[data-category="lunch"] input[value="${rec.lunch}"]`)?.parentElement;
+        if (lCard) {
+          lCard.classList.add('border-amber-600', 'bg-amber-50/50');
+          lCard.querySelector('input').checked = true;
+          document.getElementById('lunchSelectedLabel').innerText = `已選：${OPTIONS_CONFIG.lunch[rec.lunch].name} ($${OPTIONS_CONFIG.lunch[rec.lunch].cost})`;
+        }
+      } else {
+        document.getElementById('lunchSelectedLabel').innerText = '未選擇';
+      }
+
+      document.getElementById('inputDailySaving').value = rec.savingPlan || 15;
+      document.getElementById('inputOtherExpense').value = rec.other || 0;
+
+      const btn = document.getElementById('btnConfirmBudget');
+      const savingInput = document.getElementById('inputDailySaving');
+      const otherInput = document.getElementById('inputOtherExpense');
+
+      // 檢查當日是否已鎖定
+      if (rec.budgetLocked) {
+        btn.disabled = true;
+        btn.innerHTML = `<i class="fa-solid fa-lock mr-1"></i> 第 ${day} 天預算已確認鎖定`;
+        btn.classList.replace('bg-blue-600', 'bg-emerald-600');
+        savingInput.disabled = true;
+        otherInput.disabled = true;
+
+        if (rec.surpriseDone) {
+          // 如果老師已經下發突發事件，顯示突發事件
+          document.getElementById('surpriseContentEmpty').classList.add('hidden');
+          document.getElementById('surpriseContentActive').classList.remove('hidden');
+          document.getElementById('surpriseStatusTag').innerText = '突發事件已揭曉';
+          document.getElementById('surpriseStatusTag').className = 'text-[11px] font-bold text-amber-600';
+          renderSurpriseEventUI(day);
+        } else {
+          // 如果尚未下發，維持等待狀態
+          document.getElementById('surpriseContentEmpty').classList.remove('hidden');
+          document.getElementById('surpriseContentActive').classList.add('hidden');
+          document.getElementById('surpriseEmptyHint').innerText = '✅ 預算已鎖定！請注意黑板，等候老師下發突發事件指令...';
+          document.getElementById('surpriseStatusTag').innerText = '已鎖定，等候指令';
+          document.getElementById('surpriseStatusTag').className = 'text-[11px] font-bold text-blue-600';
+        }
+      } else {
+        // 尚未鎖定，允許學生選擇與輸入
+        btn.disabled = false;
+        btn.innerHTML = `<i class="fa-solid fa-lock"></i> <span>確認第 ${day} 天預算並鎖定</span>`;
+        btn.classList.replace('bg-emerald-600', 'bg-blue-600');
+        savingInput.disabled = false;
+        otherInput.disabled = false;
+        document.getElementById('surpriseContentEmpty').classList.remove('hidden');
+        document.getElementById('surpriseContentActive').classList.add('hidden');
+        document.getElementById('surpriseEmptyHint').innerText = '請先完成今日預算並按「確認鎖定」';
+        document.getElementById('surpriseStatusTag').innerText = '等待確認預算';
+        document.getElementById('surpriseStatusTag').className = 'text-[11px] text-slate-400';
+      }
+
+      calculateDayBudget();
+    }
+
+    function renderDay4Summary() {
+      const cumTotal = calculateCumulativeBalance(3);
+      const isHealthy = currentStudent.healthStatus === 'healthy';
+      const targetCost = 50; // 投影片 P.15: 偶像電影 $50
+
+      const iconBox = document.getElementById('goalResultIcon');
+      const titleBox = document.getElementById('goalResultTitle');
+      const descBox = document.getElementById('goalResultDesc');
+
+      const tbody = document.getElementById('summaryTableBody');
+      tbody.innerHTML = '';
+
+      // 組合 3 天的詳細表格
+      const rows = [
+        { label: '每日收入', d1: '$60', d2: '$60', d3: '$60', tot: '$180' },
+        { 
+          label: '交通開支', 
+          d1: currentStudent.records[1].transport ? `${OPTIONS_CONFIG.transport[currentStudent.records[1].transport].name} ($${OPTIONS_CONFIG.transport[currentStudent.records[1].transport].cost})` : '--',
+          d2: currentStudent.records[2].transport ? `${OPTIONS_CONFIG.transport[currentStudent.records[2].transport].name} ($${OPTIONS_CONFIG.transport[currentStudent.records[2].transport].cost})` : '--',
+          d3: currentStudent.records[3].transport ? `${OPTIONS_CONFIG.transport[currentStudent.records[3].transport].name} ($${OPTIONS_CONFIG.transport[currentStudent.records[3].transport].cost})` : '--',
+          tot: `$${(getCost(1, 'transport') + getCost(2, 'transport') + getCost(3, 'transport'))}`
+        },
+        { 
+          label: '午餐開支', 
+          d1: currentStudent.records[1].lunch ? `${OPTIONS_CONFIG.lunch[currentStudent.records[1].lunch].name} ($${OPTIONS_CONFIG.lunch[currentStudent.records[1].lunch].cost})` : '--',
+          d2: currentStudent.records[2].lunch ? `${OPTIONS_CONFIG.lunch[currentStudent.records[2].lunch].name} ($${OPTIONS_CONFIG.lunch[currentStudent.records[2].lunch].cost})` : '--',
+          d3: currentStudent.records[3].lunch ? `${OPTIONS_CONFIG.lunch[currentStudent.records[3].lunch].name} ($${OPTIONS_CONFIG.lunch[currentStudent.records[3].lunch].cost})` : '--',
+          tot: `$${(getCost(1, 'lunch') + getCost(2, 'lunch') + getCost(3, 'lunch'))}`
+        },
+        { 
+          label: '突發事件開支', 
+          d1: '-$20 (生日禮物)', 
+          d2: '-$10 (賣旗日)', 
+          d3: '$0 (健康檢核)', 
+          tot: '-$30' 
+        },
+        { 
+          label: '實際總支出', 
+          d1: `$${currentStudent.records[1].actualTotal}`, 
+          d2: `$${currentStudent.records[2].actualTotal}`, 
+          d3: `$${currentStudent.records[3].actualTotal}`, 
+          tot: `$${currentStudent.records[1].actualTotal + currentStudent.records[2].actualTotal + currentStudent.records[3].actualTotal}` 
+        },
+        { 
+          label: '每日結餘', 
+          d1: `$${currentStudent.records[1].balance}`, 
+          d2: `$${currentStudent.records[2].balance}`, 
+          d3: `$${currentStudent.records[3].balance}`, 
+          tot: `$${cumTotal}`,
+          highlight: true
+        }
+      ];
+
+      rows.forEach(r => {
+        const tr = document.createElement('tr');
+        if (r.highlight) {
+          tr.className = 'font-bold bg-blue-50/80 text-blue-950';
+        }
+        tr.innerHTML = `
+          <td class="py-2.5 px-3 font-semibold">${r.label}</td>
+          <td class="py-2.5 px-3">${r.d1}</td>
+          <td class="py-2.5 px-3">${r.d2}</td>
+          <td class="py-2.5 px-3">${r.d3}</td>
+          <td class="py-2.5 px-3 font-extrabold text-blue-700">${r.tot}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+
+      // 判定是否成功看電影
+      if (cumTotal >= targetCost && isHealthy) {
+        // 大成功！放煙花慶祝
+        iconBox.className = 'w-16 h-16 rounded-full mx-auto flex items-center justify-center text-3xl shadow-lg bg-emerald-500 text-white badge-pop';
+        iconBox.innerHTML = '<i class="fa-solid fa-trophy"></i>';
+        titleBox.innerText = `恭喜你！成功與好朋友看電影！（結餘：$${cumTotal}）`;
+        titleBox.className = 'text-2xl font-black text-emerald-700';
+        descBox.innerText = `你在 3 天中成功累積了 $${cumTotal}（多於所需之 $50），且保持身體健康！你具備知情、審慎及先儲蓄後消費的優良理財素養！`;
+        try { confetti({ particleCount: 80, spread: 70, origin: { y: 0.6 } }); } catch(e){}
+      } else if (!isHealthy) {
+        iconBox.className = 'w-16 h-16 rounded-full mx-auto flex items-center justify-center text-3xl shadow-lg bg-amber-500 text-white';
+        iconBox.innerHTML = '<i class="fa-solid fa-bed"></i>';
+        titleBox.innerText = `未能看電影：體力不支住院中！`;
+        titleBox.className = 'text-2xl font-black text-amber-700';
+        descBox.innerText = `雖然你的結餘為 $${cumTotal}，但你為了省錢過度削弱必要開支（連續步行或只吃三文治），導致身體受損。謹記：理財不應以健康為代價！`;
+      } else {
+        iconBox.className = 'w-16 h-16 rounded-full mx-auto flex items-center justify-center text-3xl shadow-lg bg-red-500 text-white';
+        iconBox.innerHTML = '<i class="fa-solid fa-circle-xmark"></i>';
+        titleBox.innerText = `金錢不足：尚欠 $${targetCost - cumTotal} 才能購票！`;
+        titleBox.className = 'text-2xl font-black text-red-600';
+        descBox.innerText = `你的 3 天累積儲蓄只有 $${cumTotal}，未能達到 $50 的門票費用。原因可能包括平日選擇了較昂貴的的士或飯盒，且未能嚴格實踐「先儲蓄後消費」！`;
+      }
+    }
+
+    function getCost(day, type) {
+      const rec = currentStudent.records[day];
+      if (!rec || !rec[type]) return 0;
+      return OPTIONS_CONFIG[type][rec[type]].cost;
+    }
+
+    function submitFinalExitTicket() {
+      const q1 = document.getElementById('reflectionQ1').value.trim();
+      const q2 = document.getElementById('reflectionQ2').value.trim();
+
+      if (!q1 || !q2) {
+        alertModal('請先填寫兩題反思問題，再提交過關卡！');
+        return;
+      }
+
+      currentStudent.exitTicket = { q1, q2, submitted: true };
+      persistData();
+      sendRecordToGoogleSheets(4, '提交課堂過關卡');
+      alertModal('課堂過關卡已成功提交！老師可於儀表板查閱你的學習反思心得。');
+    }
+
+    function switchView(mode) {
+      const studentBtn = document.getElementById('btnSwitchStudent');
+      const teacherBtn = document.getElementById('btnSwitchTeacher');
+      const studentView = document.getElementById('studentView');
+      const teacherView = document.getElementById('teacherView');
+
+      if (mode === 'student') {
+        studentView.classList.remove('hidden');
+        teacherView.classList.add('hidden');
+        studentBtn.className = 'px-3 py-1.5 rounded-lg transition-all duration-200 bg-white text-blue-700 shadow-sm flex items-center space-x-1.5';
+        teacherBtn.className = 'px-3 py-1.5 rounded-lg transition-all duration-200 text-slate-600 hover:text-slate-900 flex items-center space-x-1.5';
+      } else {
+        studentView.classList.add('hidden');
+        teacherView.classList.remove('hidden');
+        teacherBtn.className = 'px-3 py-1.5 rounded-lg transition-all duration-200 bg-white text-blue-700 shadow-sm flex items-center space-x-1.5';
+        studentBtn.className = 'px-3 py-1.5 rounded-lg transition-all duration-200 text-slate-600 hover:text-slate-900 flex items-center space-x-1.5';
+        renderTeacherTable();
+      }
+    }
+
+    // 教師廣播切換全班天數
+    function teacherBroadcastDay(day) {
+      const cmd = { type: 'GOTO_DAY', day: day, timestamp: Date.now() };
+      localStorage.setItem('edb_fin_broadcast_command', JSON.stringify(cmd));
+      alertModal(`已向全班學生廣播：切換至【第 ${day} 天】！`);
+      gotoDay(day);
+    }
+
+    // 教師手動下發突發事件指令
+    function teacherTriggerSurprise(day) {
+      const cmd = { type: 'TRIGGER_SURPRISE', day: day, timestamp: Date.now() };
+      localStorage.setItem('edb_fin_broadcast_command', JSON.stringify(cmd));
+      
+      // 當前若是該天，直接同步執行突發事件
+      if (currentStudent.currentDay === day) {
+        executeSurpriseEvent(day);
+      }
+      alertModal(`已成功下發【第 ${day} 天突發事件：${SURPRISE_EVENTS[day].title}】至全班學生端！`);
+      renderTeacherTable();
+    }
+
+    // 處理教師廣播命令 (跨視窗/分頁監聽)
+    function handleTeacherBroadcastCommand(cmd) {
+      if (!cmd) return;
+      if (cmd.type === 'GOTO_DAY') {
+        gotoDay(cmd.day);
+        alertModal(`老師已廣播：進入【第 ${cmd.day} 天】！`);
+      } else if (cmd.type === 'TRIGGER_SURPRISE') {
+        if (currentStudent.currentDay === cmd.day) {
+          executeSurpriseEvent(cmd.day);
+        }
+      }
+    }
+
+    function renderTeacherTable() {
+      const tbody = document.getElementById('teacherTableBody');
+      if (!tbody) return;
+
+      const totalStudents = classStudents.length;
+      document.getElementById('teacherStudentCountBadge').innerText = totalStudents;
+      document.getElementById('statTotalStudents').innerText = `${totalStudents} 人`;
+
+      if (totalStudents === 0) {
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="10" class="py-10 text-center text-slate-400">
+              <i class="fa-solid fa-user-clock text-3xl mb-2 text-slate-300"></i>
+              <p>目前尚無學生提交預算，請切換至學生端進行輸入，或點選上方「載入示範學生數據」。</p>
+            </td>
+          </tr>
+        `;
+        return;
+      }
+
+      let deficitCount = 0;
+      let hospitalCount = 0;
+      let successGoalCount = 0;
+
+      tbody.innerHTML = '';
+
+      classStudents.forEach((student, idx) => {
+        // 計算總結餘
+        let totalBal = 0;
+        for (let d = 1; d <= 3; d++) {
+          if (student.records && student.records[d]) {
+            totalBal += student.records[d].balance;
+          }
+        }
+
+        const isDeficit = totalBal < 0;
+        const isHospital = student.healthStatus === 'hospital';
+        const isGoalAchieved = totalBal >= 50 && !isHospital;
+
+        if (isDeficit) deficitCount++;
+        if (isHospital) hospitalCount++;
+        if (isGoalAchieved) successGoalCount++;
+
+        const tr = document.createElement('tr');
+        tr.className = `hover:bg-slate-50 transition-colors ${isDeficit ? 'bg-red-50/40' : ''}`;
+
+        // 格式化每日顯示
+        const getDaySnippet = (d) => {
+          const r = student.records ? student.records[d] : null;
+          if (!r || !r.transport) return '<span class="text-slate-300">未填寫</span>';
+          const tName = OPTIONS_CONFIG.transport[r.transport]?.name || '';
+          const lName = OPTIONS_CONFIG.lunch[r.lunch]?.name || '';
+          const bal = r.balance;
+          const balColor = bal < 0 ? 'text-red-600 font-bold' : 'text-emerald-600';
+          return `
+            <div>
+              <span class="text-slate-700">${tName} + ${lName}</span>
+              <div class="text-[10px] ${balColor}">餘額: $${bal}</div>
+            </div>
+          `;
+        };
+
+        tr.innerHTML = `
+          <td class="py-3 px-3 font-bold text-slate-800">${student.class || '1A'}</td>
+          <td class="py-3 px-3 font-semibold text-slate-600">${student.classNo || '--'}</td>
+          <td class="py-3 px-3 font-bold text-slate-900">${student.name || '同學'}</td>
+          <td class="py-3 px-3">${getDaySnippet(1)}</td>
+          <td class="py-3 px-3">${getDaySnippet(2)}</td>
+          <td class="py-3 px-3">${getDaySnippet(3)}</td>
+          <td class="py-3 px-3 font-black ${isDeficit ? 'text-red-600 bg-red-100/60 px-2 rounded' : 'text-blue-700'}">
+            $${totalBal}
+          </td>
+          <td class="py-3 px-3">
+            <span class="px-2 py-0.5 rounded text-[10px] font-bold ${isHospital ? 'bg-red-100 text-red-700' : 'bg-emerald-100 text-emerald-700'}">
+              ${isHospital ? '入院 (體力不支)' : '健康良好'}
+            </span>
+          </td>
+          <td class="py-3 px-3">
+            <span class="px-2 py-0.5 rounded text-[10px] font-bold ${isGoalAchieved ? 'bg-purple-100 text-purple-700' : 'bg-slate-100 text-slate-500'}">
+              ${isGoalAchieved ? '成功買票 ($50)' : '未達成'}
+            </span>
+          </td>
+          <td class="py-3 px-3 text-right">
+            <button onclick="inspectStudent('${student.id}')" class="text-blue-600 hover:text-blue-800 font-bold text-xs underline">
+              詳情
+            </button>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+
+      // 更新指標
+      document.getElementById('statDeficitCount').innerText = `${deficitCount} 人`;
+      document.getElementById('statHospitalCount').innerText = `${hospitalCount} 人`;
+      const rate = totalStudents > 0 ? Math.round((successGoalCount / totalStudents) * 100) : 0;
+      document.getElementById('statSuccessGoalCount').innerText = `${rate}% (${successGoalCount}人)`;
+    }
+
+    function injectDemoClassData() {
+      const demoData = [
+        {
+          id: '1A_01_陳大文', class: '1A', classNo: '01', name: '陳大文', healthStatus: 'healthy',
+          records: {
+            1: { transport: 'bus', lunch: 'bento', savingPlan: 15, other: 0, plannedTotal: 45, surpriseDone: true, actualTotal: 65, balance: -5 },
+            2: { transport: 'bus', lunch: 'udon', savingPlan: 20, other: 0, plannedTotal: 30, surpriseDone: true, actualTotal: 40, balance: 20 },
+            3: { transport: 'bus', lunch: 'bento', savingPlan: 15, other: 0, plannedTotal: 45, surpriseDone: true, actualTotal: 45, balance: 15 }
+          },
+          exitTicket: { q1: '第一天買了的士太貴導致赤字，第二天改為食烏冬儲錢。', q2: '我會學懂先儲蓄後消費。', submitted: true }
+        },
+        {
+          id: '1A_02_李美儀', class: '1A', classNo: '02', name: '李美儀', healthStatus: 'healthy',
+          records: {
+            1: { transport: 'bus', lunch: 'udon', savingPlan: 25, other: 5, plannedTotal: 35, surpriseDone: true, actualTotal: 55, balance: 5 },
+            2: { transport: 'bus', lunch: 'udon', savingPlan: 25, other: 0, plannedTotal: 30, surpriseDone: true, actualTotal: 40, balance: 20 },
+            3: { transport: 'bus', lunch: 'udon', savingPlan: 25, other: 0, plannedTotal: 30, surpriseDone: true, actualTotal: 30, balance: 30 }
+          },
+          exitTicket: { q1: '我每一天都堅持儲蓄 $25，所以即使突發買禮物同賣旗，最後都有 $55 買戲飛！', q2: '會繼續保持節制消費。', submitted: true }
+        },
+        {
+          id: '1A_03_張小明', class: '1A', classNo: '03', name: '張小明', healthStatus: 'hospital',
+          records: {
+            1: { transport: 'walk', lunch: 'sandwich', savingPlan: 45, other: 0, plannedTotal: 10, surpriseDone: true, actualTotal: 30, balance: 30 },
+            2: { transport: 'walk', lunch: 'sandwich', savingPlan: 45, other: 0, plannedTotal: 10, surpriseDone: true, actualTotal: 20, balance: 40 },
+            3: { transport: 'walk', lunch: 'sandwich', savingPlan: 45, other: 0, plannedTotal: 10, surpriseDone: true, actualTotal: 10, balance: 50 }
+          },
+          exitTicket: { q1: '雖然我儲到好多錢，但因為連日行路同食三文治，搞到入院睇唔到戲，好後悔！', q2: '唔可以為慳錢而整壞身體。', submitted: true }
+        },
+        {
+          id: '1A_04_黃家豪', class: '1A', classNo: '04', name: '黃家豪', healthStatus: 'healthy',
+          records: {
+            1: { transport: 'taxi', lunch: 'bento', savingPlan: 0, other: 0, plannedTotal: 60, surpriseDone: true, actualTotal: 80, balance: -20 },
+            2: { transport: 'taxi', lunch: 'bento', savingPlan: 0, other: 0, plannedTotal: 60, surpriseDone: true, actualTotal: 70, balance: -10 },
+            3: { transport: 'taxi', lunch: 'bento', savingPlan: 0, other: 0, plannedTotal: 60, surpriseDone: true, actualTotal: 60, balance: 0 }
+          },
+          exitTicket: { q1: '日日坐的士同食大飯盒，完全冇儲蓄，突發事件借咗人錢，嚴重赤字。', q2: '一定要分清需要同想要。', submitted: true }
+        }
+      ];
+
+      classStudents = demoData;
+      localStorage.setItem('edb_fin_all_students', JSON.stringify(classStudents));
+      renderTeacherTable();
+      alertModal('已成功載入 4 位香港中一典型情景示範學生數據（包含健康良好成功達標、赤字個案、以及過度節約住院個案）！');
+    }
+
+    function inspectStudent(studentId) {
+      const student = classStudents.find(s => s.id === studentId);
+      if (!student) return;
+
+      document.getElementById('detailStudentTitle').innerText = `${student.name} 的理財歷程`;
+      document.getElementById('detailStudentMeta').innerText = `班別: ${student.class} | 學號: ${student.classNo} | 狀態: ${student.healthStatus === 'hospital' ? '住院中' : '正常'}`;
+      document.getElementById('detailAvatar').innerText = student.classNo || '學';
+
+      let totalBal = 0;
+      let dayHtml = '';
+      for (let d = 1; d <= 3; d++) {
+        const r = student.records ? student.records[d] : null;
+        if (r) {
+          totalBal += r.balance;
+          dayHtml += `
+            <div class="p-3 bg-slate-50 rounded-xl border border-slate-200">
+              <div class="flex justify-between font-bold text-slate-800 pb-1 mb-1 border-b border-slate-200">
+                <span>第 ${d} 天開支明細</span>
+                <span class="${r.balance < 0 ? 'text-red-600' : 'text-emerald-600'}">結餘: $${r.balance}</span>
+              </div>
+              <div class="grid grid-cols-2 gap-2 text-slate-600">
+                <div>交通：${r.transport ? OPTIONS_CONFIG.transport[r.transport]?.name : '--'} ($${r.transport ? OPTIONS_CONFIG.transport[r.transport]?.cost : 0})</div>
+                <div>午餐：${r.lunch ? OPTIONS_CONFIG.lunch[r.lunch]?.name : '--'} ($${r.lunch ? OPTIONS_CONFIG.lunch[r.lunch]?.cost : 0})</div>
+                <div>計劃支出：$${r.plannedTotal}</div>
+                <div>實際支出：$${r.actualTotal}</div>
+              </div>
+            </div>
+          `;
+        }
+      }
+
+      const modalBody = document.getElementById('detailModalBody');
+      modalBody.innerHTML = `
+        <div class="flex items-center justify-between p-3 bg-blue-50 rounded-xl border border-blue-200">
+          <span class="font-bold text-blue-900">3 天累積儲蓄結餘：</span>
+          <span class="text-base font-black ${totalBal < 0 ? 'text-red-600' : 'text-blue-700'}">$${totalBal}</span>
+        </div>
+        <div class="space-y-2">
+          ${dayHtml}
+        </div>
+        <div class="p-3 bg-amber-50 rounded-xl border border-amber-200 space-y-1.5">
+          <div class="font-bold text-amber-900"><i class="fa-solid fa-pen-nib mr-1"></i> 學生課堂過關卡反思：</div>
+          <p class="text-slate-700"><strong>Q1 買戲票成敗原因：</strong> ${student.exitTicket?.q1 || '未填寫'}</p>
+          <p class="text-slate-700"><strong>Q2 未來零用錢規劃承諾：</strong> ${student.exitTicket?.q2 || '未填寫'}</p>
+        </div>
+      `;
+
+      document.getElementById('studentDetailModal').classList.remove('hidden');
+    }
+
+    function closeStudentDetailModal() {
+      document.getElementById('studentDetailModal').classList.add('hidden');
+    }
+
+    function openConfigModal() {
+      document.getElementById('configModal').classList.remove('hidden');
+    }
+
+    function closeConfigModal() {
+      document.getElementById('configModal').classList.add('hidden');
+    }
+
+    function saveGoogleSheetConfig() {
+      const url = document.getElementById('inputGoogleSheetUrl').value.trim();
+      googleSheetWebhookUrl = url;
+      localStorage.setItem('edb_fin_gsheet_url', url);
+      closeConfigModal();
+      alertModal('Google Sheets 串接設定已更新！');
+    }
+
+    function copyAppsScriptSample() {
+      const code = document.getElementById('appsScriptCode').innerText;
+      copyToClipboardFallback(code);
+      alertModal('已複製 Apps Script 範例程式碼！請貼到 Google 試算表中的「擴充功能 > Apps Script」並部署為網頁應用程式。');
+    }
+
+    // 發送資料至 Google Sheets Webhook (POST JSON)
+    async function sendRecordToGoogleSheets(day, actionDesc) {
+      if (!googleSheetWebhookUrl) return;
+
+      const rec = currentStudent.records[day] || {};
+      const payload = {
+        timestamp: new Date().toISOString(),
+        class: currentStudent.class,
+        classNo: currentStudent.classNo,
+        name: currentStudent.name,
+        day: day,
+        action: actionDesc,
+        transport: rec.transport ? OPTIONS_CONFIG.transport[rec.transport].name : '',
+        lunch: rec.lunch ? OPTIONS_CONFIG.lunch[rec.lunch].name : '',
+        plannedTotal: rec.plannedTotal || 0,
+        actualTotal: rec.actualTotal || 0,
+        balance: rec.balance || 0,
+        cumBalance: calculateCumulativeBalance(day),
+        healthStatus: currentStudent.healthStatus
+      };
+
+      try {
+        fetch(googleSheetWebhookUrl, {
+          method: 'POST',
+          mode: 'no-cors', // 允許跨網域 Google Web App POST
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+      } catch (err) {
+        console.warn('Google Sheets sync error:', err);
+      }
+    }
+
+    function triggerSyncToGoogleSheets() {
+      if (!googleSheetWebhookUrl) {
+        openConfigModal();
+        alertModal('請先在此填入你的 Google Apps Script Webhook URL！');
+        return;
+      }
+      classStudents.forEach(st => {
+        for (let d = 1; d <= 3; d++) {
+          if (st.records && st.records[d]) {
+            sendRecordToGoogleSheets(d, '手動批次同步');
+          }
+        }
+      });
+      alertModal('已成功觸發批次同步至 Google 試算表！');
+    }
+
+    function exportToCSV() {
+      if (classStudents.length === 0) {
+        alertModal('目前沒有任何學生資料可匯出！');
+        return;
+      }
+
+      let csv = '\uFEFF班別,學號,姓名,第1天交通,第1天午餐,第1天結餘,第2天交通,第2天午餐,第2天結餘,第3天交通,第3天午餐,第3天結餘,3天累計總結餘,健康狀態,第四天睇戲達成,反思Q1,反思Q2\n';
+
+      classStudents.forEach(s => {
+        const r1 = s.records?.[1] || {};
+        const r2 = s.records?.[2] || {};
+        const r3 = s.records?.[3] || {};
+        const totalBal = (r1.balance || 0) + (r2.balance || 0) + (r3.balance || 0);
+        const achieved = totalBal >= 50 && s.healthStatus === 'healthy' ? '成功' : '不成功';
+
+        const row = [
+          `"${s.class || ''}"`,
+          `"${s.classNo || ''}"`,
+          `"${s.name || ''}"`,
+          `"${r1.transport ? OPTIONS_CONFIG.transport[r1.transport]?.name : ''}"`,
+          `"${r1.lunch ? OPTIONS_CONFIG.lunch[r1.lunch]?.name : ''}"`,
+          `"${r1.balance ?? ''}"`,
+          `"${r2.transport ? OPTIONS_CONFIG.transport[r2.transport]?.name : ''}"`,
+          `"${r2.lunch ? OPTIONS_CONFIG.lunch[r2.lunch]?.name : ''}"`,
+          `"${r2.balance ?? ''}"`,
+          `"${r3.transport ? OPTIONS_CONFIG.transport[r3.transport]?.name : ''}"`,
+          `"${r3.lunch ? OPTIONS_CONFIG.lunch[r3.lunch]?.name : ''}"`,
+          `"${r3.balance ?? ''}"`,
+          `"${totalBal}"`,
+          `"${s.healthStatus === 'hospital' ? '住院' : '健康'}"`,
+          `"${achieved}"`,
+          `"${(s.exitTicket?.q1 || '').replace(/"/g, '""')}"`,
+          `"${(s.exitTicket?.q2 || '').replace(/"/g, '""')}"`
+        ];
+        csv += row.join(',') + '\n';
+      });
+
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.setAttribute('href', url);
+      link.setAttribute('download', `公經社1.3理財模擬_學生預算總表_${new Date().toLocaleDateString('zh-HK')}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
+
+    function alertModal(msg) {
+      // 建立簡潔非侵入式 Toast 通知
+      const existing = document.getElementById('appToastMessage');
+      if (existing) existing.remove();
+
+      const toast = document.createElement('div');
+      toast.id = 'appToastMessage';
+      toast.className = 'fixed bottom-5 right-5 z-50 bg-slate-900 text-white text-xs font-semibold px-4 py-3 rounded-xl shadow-2xl flex items-center space-x-2 border border-slate-700 badge-pop max-w-sm';
+      toast.innerHTML = `
+        <i class="fa-solid fa-bell text-blue-400"></i>
+        <span>${msg}</span>
+      `;
+      document.body.appendChild(toast);
+
+      setTimeout(() => {
+        toast.style.opacity = '0';
+        toast.style.transition = 'opacity 0.5s ease';
+        setTimeout(() => toast.remove(), 500);
+      }, 3500);
+    }
+
+    function copyToClipboardFallback(text) {
+      const textarea = document.createElement('textarea');
+      textarea.value = text;
+      textarea.style.position = 'fixed';
+      textarea.style.opacity = '0';
+      document.body.appendChild(textarea);
+      textarea.select();
+      try {
+        document.execCommand('copy');
+      } catch (e) {
+        console.error('Copy failed:', e);
+      }
+      document.body.removeChild(textarea);
+    }
+  </script>
+</body>
+</html>
